@@ -1,18 +1,16 @@
 #!/bin/bash
 
-POPPLER_VERSION=${POPPLER_VERSION-0.57.0}
+POPPLER_VERSION=${POPPLER_VERSION-21.09.0}
 POPPLER_TARBALL_URL="https://poppler.freedesktop.org/poppler-${POPPLER_VERSION}.tar.xz"
 TEMP_DIR=$(mktemp -d /tmp/poppler.XXXXXXXXXX)
 
-#if ! [ -x "$(command -v xc)" ]; then
-#  export DEBIAN_FRONTEND=noninteractive
-#  apt-get update
-#  apt-get install -y xz-utils
-#fi
+apt-get update && \
+apt-get -y install libcairo2-dev libjpeg-dev libgif-dev && \
+apt-get -y install cmake libblkid-dev e2fslibs-dev libboost-all-dev libaudit-dev
 
 echo "Serving files from /tmp on $PORT"
 cd /tmp
-python -m SimpleHTTPServer $PORT &
+python -m http.server $PORT &
 
 cd $TEMP_DIR
 echo "Temp dir: $TEMP_DIR"
@@ -20,14 +18,15 @@ echo "Temp dir: $TEMP_DIR"
 echo "Downloading $POPPLER_TARBALL_URL"
 curl -L $POPPLER_TARBALL_URL | tar xJ
 
-(
-	cd poppler-${POPPLER_VERSION}
-	./configure \
-	  --prefix=/tmp/poppler \
-	  --disable-shared \
-	  --enable-build-type=release \
-	  --enable-libopenjpeg=none
-	make install
-)
+cd poppler-${POPPLER_VERSION}
+mkdir build
+cd build/
+cmake  -DCMAKE_BUILD_TYPE=Release   \
+       -DCMAKE_INSTALL_PREFIX=/usr  \
+       -DTESTDATADIR=$PWD/testfiles \
+       -DENABLE_UNSTABLE_API_ABI_HEADERS=ON \
+       ..
+make
+make install
 
-cp /tmp/poppler/bin/pdftotext $1
+cp /usr/bin/pdftotext $1
